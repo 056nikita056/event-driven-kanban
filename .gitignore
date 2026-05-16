@@ -32,10 +32,10 @@ yarn-error.log*
 .env.production.local
 
 # local project notes
-CONTEXT_FOR_AI.md
-PLAN.md
-GUIDE.md
-FIGMA_MAKE_PROMPT.md
+project-notes.md
+roadmap.md
+implementation-guide.md
+design-brief.md
 
 # vercel
 .vercel
