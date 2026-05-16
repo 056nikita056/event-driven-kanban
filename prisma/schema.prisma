@@ -1,0 +1,106 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(cuid())
+  name          String
+  role          Role           @default(USER)
+  createdAt     DateTime       @default(now())
+  events        Event[]
+  notifications Notification[]
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model Board {
+  id      String          @id @default(cuid())
+  name    String
+  columns Column[]
+  rules   AutomationRule[]
+}
+
+model Column {
+  id      String  @id @default(cuid())
+  boardId String
+  name    String
+  order   Int
+  color   String?
+  wipLimit Int?
+  board   Board   @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  cards   Card[]
+}
+
+model Card {
+  id          String    @id @default(cuid())
+  columnId    String
+  title       String
+  description String?
+  priority    Priority  @default(MEDIUM)
+  tags        String[]
+  order       Int
+  deadline    DateTime?
+  assigneeId  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  version     Int       @default(1)
+  column      Column    @relation(fields: [columnId], references: [id], onDelete: Cascade)
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model AutomationRule {
+  id            String  @id @default(cuid())
+  boardId       String
+  name          String
+  enabled       Boolean @default(true)
+  triggerType   String  // 'card.created' | 'card.moved' | 'tag.added'
+  triggerConfig Json    // {"toColumnId": "...", "tag": "urgent"}
+  actionType    String  // 'move_to_column' | 'add_tag' | 'notify'
+  actionConfig  Json    // {"columnId": "..."}
+  board         Board   @relation(fields: [boardId], references: [id], onDelete: Cascade)
+}
+
+model Event {
+  id          String      @id @default(cuid())
+  eventKey    String      @unique // дедупликация
+  type        String
+  payload     Json
+  userId      String?
+  status      EventStatus @default(PENDING)
+  error       String?
+  createdAt   DateTime    @default(now())
+  processedAt DateTime?
+  user        User?       @relation(fields: [userId], references: [id])
+}
+
+enum EventStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  message   String
+  read      Boolean  @default(false)
+  payload   Json?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
