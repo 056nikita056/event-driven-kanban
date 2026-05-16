@@ -31,6 +31,12 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
+# local project notes
+CONTEXT_FOR_AI.md
+PLAN.md
+GUIDE.md
+FIGMA_MAKE_PROMPT.md
+
 # vercel
 .vercel
 
