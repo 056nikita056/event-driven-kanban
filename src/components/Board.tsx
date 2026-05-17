@@ -83,6 +83,10 @@ export function Board({ initialColumns, boardId, boardName, userId }: BoardProps
   }, [])
 
   useEffect(() => {
+    void refreshBoard()
+  }, [refreshBoard])
+
+  useEffect(() => {
     const savedUserId = window.localStorage.getItem('kanban_userId')
     if (savedUserId) setCurrentUserId(savedUserId)
   }, [])
