@@ -187,6 +187,7 @@ REDIS_URL=...
 NEXT_PUBLIC_SOCKET_URL=https://your-web-service.up.railway.app
 NEXT_PUBLIC_APP_URL=https://your-web-service.up.railway.app
 NODE_ENV=production
+SERVICE_TYPE=web
 ```
 
 ### 2. Worker service
@@ -203,6 +204,7 @@ npm run worker:prod
 DATABASE_URL=...
 REDIS_URL=...
 NODE_ENV=production
+SERVICE_TYPE=worker
 ```
 
 Worker не принимает HTTP-запросы. Его задача — слушать очередь `kanban-events`.
