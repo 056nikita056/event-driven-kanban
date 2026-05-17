@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { enqueueEvent } from '@/lib/queue'
-import { emitNotification } from '@/lib/socket'
+import { publishNotification } from '@/lib/pubsub'
 import type { EventType } from './types'
 
 interface AutomationContext {
@@ -27,7 +27,7 @@ export async function runAutomation(ctx: AutomationContext): Promise<void> {
     console.log(`[Automation] Rule "${rule.name}" triggered`)
 
     try {
-      await executeAction(rule.actionType, actionConfig, payload, boardId)
+      await executeAction(rule.actionType, actionConfig, payload, boardId, userId)
 
       await enqueueEvent('rule.triggered', {
         ruleId: rule.id,
@@ -78,7 +78,8 @@ async function executeAction(
   actionType: string,
   config: Record<string, unknown>,
   payload: Record<string, unknown>,
-  boardId: string
+  boardId: string,
+  actorUserId?: string
 ): Promise<void> {
   switch (actionType) {
     case 'move_to_column': {
@@ -124,14 +125,31 @@ async function executeAction(
     }
 
     case 'notify': {
-      const message = (config.message as string) || `Automation triggered: ${payload.cardId}`
       const cardId = payload.cardId as string
       const targetUserId = config.targetUserId as string | undefined
 
-      const users = targetUserId
-        ? [{ id: targetUserId }]
-        : await prisma.user.findMany({ select: { id: true } })
-      for (const user of users) {
+      const [card, actor, allUsers] = await Promise.all([
+        cardId ? prisma.card.findUnique({ where: { id: cardId }, select: { title: true } }) : null,
+        actorUserId ? prisma.user.findUnique({ where: { id: actorUserId }, select: { name: true } }) : null,
+        prisma.user.findMany({ select: { id: true } }),
+      ])
+
+      const actorName = actor?.name || 'Кто-то'
+      const cardTitle = card?.title || 'задачу'
+      const templateMessage = config.message as string | undefined
+      const message = templateMessage
+        ? `${actorName}: ${templateMessage}`
+        : `${actorName} завершил «${cardTitle}»`
+
+      console.log(`[Automation] notify — actor: ${actorUserId}, allUsers: ${allUsers.map(u => u.id).join(', ')}`)
+
+      const recipients = targetUserId
+        ? allUsers.filter((u) => u.id === targetUserId)
+        : allUsers.filter((u) => u.id !== actorUserId)
+
+      console.log(`[Automation] recipients: ${recipients.map(u => u.id).join(', ')}`)
+
+      for (const user of recipients) {
         const notif = await prisma.notification.create({
           data: {
             userId: user.id,
@@ -141,7 +159,7 @@ async function executeAction(
           },
         })
 
-        emitNotification(user.id, {
+        publishNotification(user.id, {
           id: notif.id,
           type: notif.type,
           message: notif.message,

@@ -42,6 +42,8 @@ export interface ServerToClientEvents {
 export interface ClientToServerEvents {
   'board:join': (boardId: string) => void
   'board:leave': (boardId: string) => void
+  'user:join': (userId: string) => void
+  'user:leave': (userId: string) => void
 }
 
 export function makeEventKey(type: EventType, id: string): string {

@@ -113,12 +113,19 @@ export function Board({ initialColumns, boardId, boardName, userId }: BoardProps
       if (!cancelled && result.ok && result.data) setUsers(result.data)
     }
 
+    async function loadEventLog() {
+      const response = await fetch(`/api/events?boardId=${boardId}&limit=50`)
+      const result: ApiResponse<EventLogEntry[]> = await response.json()
+      if (!cancelled && result.ok && result.data) setEventLog(result.data)
+    }
+
     void loadUsers()
+    void loadEventLog()
 
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [boardId])
 
   const handleBoardUpdate = useCallback(() => {
     // board:update triggers full refresh — simpler than partial state merge
@@ -139,6 +146,7 @@ export function Board({ initialColumns, boardId, boardName, userId }: BoardProps
 
   useSocket({
     boardId,
+    userId: currentUserId,
     onBoardUpdate: handleBoardUpdate,
     onNotification: handleNotification,
     onEventLog: handleEventLog,
@@ -216,7 +224,10 @@ export function Board({ initialColumns, boardId, boardName, userId }: BoardProps
 
       setColumns(reordered)
 
-      const changedColumns = reordered.filter((column, index) => column.order !== columns[index]?.order)
+      const changedColumns = reordered.filter((column) => {
+        const original = columns.find((c) => c.id === column.id)
+        return original?.order !== column.order
+      })
 
       try {
         await Promise.all(

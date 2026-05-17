@@ -18,7 +18,7 @@ interface ColumnDialogProps {
   boardId: string
   columns: Column[]
   userId: string
-  onSuccess: () => void
+  onSuccess: () => void | Promise<void>
 }
 
 type ColumnDialogMode = 'create' | 'edit' | 'delete'
@@ -78,7 +78,7 @@ export const ColumnDialog = forwardRef<ColumnDialogHandle, ColumnDialogProps>(
             return
           }
 
-          await Promise.resolve(onSuccess())
+          onSuccess()
           setColumnDialogOpen(false)
           return
         }
@@ -86,10 +86,7 @@ export const ColumnDialog = forwardRef<ColumnDialogHandle, ColumnDialogProps>(
         if (!columnTarget) return
 
         if (columnDialogMode === 'edit') {
-          if (!columnDraftName.trim() || columnDraftName.trim() === columnTarget.name) {
-            setColumnDialogOpen(false)
-            return
-          }
+          if (!columnDraftName.trim()) return
 
           const response = await fetch(`/api/columns/${columnTarget.id}`, {
             method: 'PATCH',
@@ -107,7 +104,7 @@ export const ColumnDialog = forwardRef<ColumnDialogHandle, ColumnDialogProps>(
             return
           }
 
-          await Promise.resolve(onSuccess())
+          onSuccess()
           setColumnDialogOpen(false)
           return
         }
@@ -121,7 +118,7 @@ export const ColumnDialog = forwardRef<ColumnDialogHandle, ColumnDialogProps>(
           return
         }
 
-        await Promise.resolve(onSuccess())
+        onSuccess()
         setColumnDialogOpen(false)
       } finally {
         setColumnSubmitting(false)

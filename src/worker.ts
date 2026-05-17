@@ -3,7 +3,7 @@ import { Worker, Job } from 'bullmq'
 import { prisma } from './lib/prisma'
 import { createRedisConnection } from './lib/redis'
 import { runAutomation } from './events/automation'
-import { emitBoardUpdate, emitEventLog } from './lib/socket'
+import { publishBoardUpdate, publishEventLog } from './lib/pubsub'
 import type { KanbanJobData, EventType } from './events/types'
 
 const QUEUE_NAME = 'kanban-events'
@@ -39,7 +39,7 @@ const worker = new Worker<KanbanJobData>(
     try {
       const boardId = getBoardId(payload as Record<string, unknown>)
 
-      emitBoardUpdate(boardId, type, payload)
+      publishBoardUpdate(boardId, type, payload)
 
       // запускаем правила автоматизации
       await runAutomation({
@@ -54,7 +54,7 @@ const worker = new Worker<KanbanJobData>(
         data: { status: 'COMPLETED', processedAt: new Date() },
       })
 
-      emitEventLog(boardId, {
+      publishEventLog(boardId, {
         id: eventRecord.id,
         type,
         payload,
