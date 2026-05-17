@@ -10,22 +10,24 @@ const globalForQueue = globalThis as unknown as {
   kanbanQueue: Queue<KanbanJobData> | undefined
 }
 
-export const kanbanQueue: Queue<KanbanJobData> =
-  globalForQueue.kanbanQueue ??
-  new Queue<KanbanJobData>(QUEUE_NAME, {
-    connection: createRedisConnection(),
-    defaultJobOptions: {
-      attempts: 3,
-      backoff: {
-        type: 'exponential',
-        delay: 1000,
+function getKanbanQueue(): Queue<KanbanJobData> {
+  if (!globalForQueue.kanbanQueue) {
+    globalForQueue.kanbanQueue = new Queue<KanbanJobData>(QUEUE_NAME, {
+      connection: createRedisConnection(),
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 1000,
+        },
+        removeOnComplete: { count: 100 },
+        removeOnFail: { count: 50 },
       },
-      removeOnComplete: { count: 100 },
-      removeOnFail: { count: 50 },
-    },
-  })
+    })
+  }
 
-if (process.env.NODE_ENV !== 'production') globalForQueue.kanbanQueue = kanbanQueue
+  return globalForQueue.kanbanQueue
+}
 
 export async function enqueueEvent(
   type: EventType,
@@ -46,7 +48,7 @@ export async function enqueueEvent(
     userId: options?.userId,
   }
 
-  await kanbanQueue.add(type, jobData, {
+  await getKanbanQueue().add(type, jobData, {
     jobId: eventKey,
   })
 
