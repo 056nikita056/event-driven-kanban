@@ -14,7 +14,6 @@ interface ParsedCard {
   description?: string
 }
 
-// Fallback regex parser if no AI key
 function regexParse(text: string): ParsedCard {
   const lower = text.toLowerCase()
 
@@ -32,10 +31,8 @@ function regexParse(text: string): ParsedCard {
   if (/документация|docs|readme/i.test(text)) tags.push('docs')
   if (priority === 'URGENT') tags.push('urgent')
 
-  // Try to parse deadline
   let deadline: string | undefined
   const datePatterns = [
-    { regex: /до\s+(понедельника|вторника|среды|четверга|пятницы|субботы|воскресенья)/i, offset: { пятницы: 4, четверга: 3, среды: 2, вторника: 1, понедельника: 0, субботы: 5, воскресенья: 6 } },
     { regex: /завтра/i, days: 1 },
     { regex: /послезавтра/i, days: 2 },
     { regex: /сегодня/i, days: 0 },
@@ -56,7 +53,6 @@ function regexParse(text: string): ParsedCard {
     }
   }
 
-  // Clean title: remove meta-words
   let title = text
     .replace(/срочно[,!]?\s*/i, '')
     .replace(/до (пятницы|понедельника|вторника|среды|четверга|субботы|воскресенья)/i, '')
@@ -75,13 +71,13 @@ function getNextWeekday(targetDay: number): number {
   return diff === 0 ? 7 : diff
 }
 
-// Claude API parser
 async function claudeParse(text: string): Promise<ParsedCard> {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) return regexParse(text)
 
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
+      signal: AbortSignal.timeout(5000),
       method: 'POST',
       headers: {
         'x-api-key': apiKey,

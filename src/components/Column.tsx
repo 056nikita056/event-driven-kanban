@@ -23,19 +23,6 @@ interface ColumnProps {
   isDragOverlay?: boolean
 }
 
-const columnColors: Record<string, string> = {
-  '#007aff': 'border-t-blue-500',
-  '#6366f1': 'border-t-indigo-500',
-  '#5e5ce6': 'border-t-violet-500',
-  '#8b5cf6': 'border-t-violet-500',
-  '#ff9500': 'border-t-amber-500',
-  '#f59e0b': 'border-t-amber-500',
-  '#34c759': 'border-t-emerald-500',
-  '#10b981': 'border-t-emerald-500',
-  '#ff2d55': 'border-t-pink-500',
-  '#5ac8fa': 'border-t-cyan-500',
-}
-
 export function KanbanColumn({
   column,
   onAddCard,
@@ -87,7 +74,6 @@ export function KanbanColumn({
       }}
       className={cn(
         'flex h-full w-80 flex-shrink-0 flex-col rounded-[24px] border border-slate-200 border-t-4 bg-white/70 shadow-sm backdrop-blur-sm transition-all duration-200',
-        columnColors[column.color || ''] || 'border-t-slate-200',
         isOver && 'ring-2 ring-indigo-400 ring-offset-2',
         isDragging && 'z-20 rotate-1 shadow-2xl'
       )}

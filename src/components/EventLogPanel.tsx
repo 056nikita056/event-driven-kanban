@@ -3,13 +3,14 @@
 import { Edit3, MoveRight, Sparkles, Trash2, X, Zap } from 'lucide-react'
 
 import type { EventLogEntry } from '@/types/kanban'
-import { formatTime, cn } from '@/lib/utils'
+import { EVENT_TYPE_LABELS, formatTime, cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 
 interface EventLogPanelProps {
   events: EventLogEntry[]
   isOpen: boolean
   onClose: () => void
+  columns: Array<{ id: string; name: string }>
 }
 
 const eventIcons: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -22,17 +23,11 @@ const eventIcons: Record<string, React.ComponentType<{ className?: string }>> = 
   'rule.triggered': Zap,
 }
 
-const eventLabels: Record<string, string> = {
-  'card.created': 'Карточка создана',
-  'card.moved': 'Карточка перемещена',
-  'card.updated': 'Карточка обновлена',
-  'card.deleted': 'Карточка удалена',
-  'column.created': 'Колонка создана',
-  'column.deleted': 'Колонка удалена',
-  'rule.triggered': 'Правило сработало',
-}
+export function EventLogPanel({ events, isOpen, onClose, columns }: EventLogPanelProps) {
+  function getColName(id: unknown) {
+    return columns.find((column) => column.id === id)?.name ?? String(id)
+  }
 
-export function EventLogPanel({ events, isOpen, onClose }: EventLogPanelProps) {
   return (
     <div
       className={cn(
@@ -66,7 +61,7 @@ export function EventLogPanel({ events, isOpen, onClose }: EventLogPanelProps) {
         ) : (
           events.slice(0, 50).map((event, index) => {
             const Icon = eventIcons[event.type] || Sparkles
-            const label = eventLabels[event.type] || event.type
+            const label = EVENT_TYPE_LABELS[event.type] || event.type
             const payload = event.payload as Record<string, unknown>
 
             return (
@@ -89,7 +84,7 @@ export function EventLogPanel({ events, isOpen, onClose }: EventLogPanelProps) {
                     )}
                     {'fromColumnId' in payload && 'toColumnId' in payload && (
                       <p className="text-xs text-muted-foreground">
-                        {String(payload.fromColumnId)} → {String(payload.toColumnId)}
+                        {getColName(payload.fromColumnId)} → {getColName(payload.toColumnId)}
                       </p>
                     )}
                     <p className="mt-1 text-xs text-muted-foreground">{formatTime(event.createdAt)}</p>

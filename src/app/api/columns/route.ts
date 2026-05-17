@@ -42,7 +42,6 @@ export async function POST(req: NextRequest) {
 
   const { boardId, name, color, wipLimit, userId } = parsed.data
 
-  // Ensure board exists
   await prisma.board.upsert({
     where: { id: boardId },
     update: {},

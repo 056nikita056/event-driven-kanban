@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import confetti from 'canvas-confetti'
 import {
   DndContext,
   DragOverlay,
@@ -22,18 +23,11 @@ import { NotificationsPopover } from '@/components/NotificationsPopover'
 import { KanbanCard } from '@/components/Card'
 import { KanbanColumn } from '@/components/Column'
 import { AdminRulesDialog } from '@/components/AdminRulesDialog'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { ColumnDialog, type ColumnDialogHandle } from '@/components/ColumnDialog'
 import { useSocket } from '@/hooks/useSocket'
 import { useToast } from '@/hooks/use-toast'
-import type { Card, Column, EventLogEntry, Notification, User } from '@/types/kanban'
+import type { ApiResponse, Card, Column, EventLogEntry, Notification, User } from '@/types/kanban'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 interface BoardProps {
@@ -42,14 +36,6 @@ interface BoardProps {
   boardName: string
   userId: string
 }
-
-interface ApiResponse<T> {
-  ok: boolean
-  data?: T
-  error?: string
-}
-
-const COLUMN_COLORS = ['#007aff', '#5e5ce6', '#ff9500', '#34c759', '#ff2d55', '#5ac8fa']
 
 export function Board({ initialColumns, boardId, boardName, userId }: BoardProps) {
   const [columns, setColumns] = useState<Column[]>(initialColumns)
@@ -64,13 +50,7 @@ export function Board({ initialColumns, boardId, boardName, userId }: BoardProps
   const [users, setUsers] = useState<User[]>([])
   const [currentUserId, setCurrentUserId] = useState(userId)
   const [isAdminDialogOpen, setIsAdminDialogOpen] = useState(false)
-  const [columnDialogOpen, setColumnDialogOpen] = useState(false)
-  const [columnDialogMode, setColumnDialogMode] = useState<'create' | 'edit' | 'delete'>('create')
-  const [columnDraftName, setColumnDraftName] = useState('')
-  const [columnDraftColor, setColumnDraftColor] = useState(COLUMN_COLORS[0])
-  const [columnDraftWipLimit, setColumnDraftWipLimit] = useState('')
-  const [columnTarget, setColumnTarget] = useState<Column | null>(null)
-  const [columnSubmitting, setColumnSubmitting] = useState(false)
+  const columnDialogRef = useRef<ColumnDialogHandle>(null)
   const { toast } = useToast()
 
   const sensors = useSensors(
@@ -141,6 +121,7 @@ export function Board({ initialColumns, boardId, boardName, userId }: BoardProps
   }, [])
 
   const handleBoardUpdate = useCallback(() => {
+    // board:update triggers full refresh — simpler than partial state merge
     void refreshBoard()
   }, [refreshBoard])
 
@@ -279,6 +260,7 @@ export function Board({ initialColumns, boardId, boardName, userId }: BoardProps
           : sourceColumn.cards.findIndex((card) => card.id === over.id)
 
       if (oldIndex >= 0 && newIndex >= 0 && oldIndex !== newIndex) {
+        // optimistic update — revert on error
         setColumns((prev) =>
           prev.map((column) =>
             column.id === sourceColumn.id
@@ -310,6 +292,7 @@ export function Board({ initialColumns, boardId, boardName, userId }: BoardProps
 
       if (!response.ok) throw new Error('Move failed')
       if (targetColumn.id !== dragCard.columnId && /done|готово/i.test(targetColumn.name)) {
+        confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } })
         toast({ title: 'Карточка завершена', description: `"${dragCard.title}" перемещена в "${targetColumn.name}"` })
       }
     } catch {
@@ -434,107 +417,6 @@ export function Board({ initialColumns, boardId, boardName, userId }: BoardProps
     setNotifications((prev) => prev.map((notification) => ({ ...notification, read: true })))
   }
 
-  function openCreateColumnDialog() {
-    setColumnDialogMode('create')
-    setColumnDraftName('')
-    setColumnDraftColor(COLUMN_COLORS[columns.length % COLUMN_COLORS.length] || COLUMN_COLORS[0])
-    setColumnDraftWipLimit('')
-    setColumnTarget(null)
-    setColumnDialogOpen(true)
-  }
-
-  function handleColumnAction(column: Column, action: 'edit' | 'delete') {
-    if (action === 'edit') {
-      setColumnDialogMode('edit')
-      setColumnDraftName(column.name)
-      setColumnDraftColor(column.color || COLUMN_COLORS[0])
-      setColumnDraftWipLimit(column.wipLimit ? String(column.wipLimit) : '')
-      setColumnTarget(column)
-      setColumnDialogOpen(true)
-      return
-    }
-
-    setColumnDialogMode('delete')
-    setColumnDraftName(column.name)
-    setColumnDraftColor(column.color || COLUMN_COLORS[0])
-    setColumnDraftWipLimit(column.wipLimit ? String(column.wipLimit) : '')
-    setColumnTarget(column)
-    setColumnDialogOpen(true)
-  }
-
-  async function handleSubmitColumnDialog() {
-    setColumnSubmitting(true)
-    try {
-      if (columnDialogMode === 'create') {
-        if (!columnDraftName.trim()) return
-
-        const response = await fetch('/api/columns', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            boardId,
-            name: columnDraftName.trim(),
-            color: columnDraftColor,
-            wipLimit: columnDraftWipLimit.trim() ? Number(columnDraftWipLimit) : null,
-            userId: currentUserId,
-          }),
-        })
-
-        if (!response.ok) {
-          toast({ title: 'Не удалось создать колонку', variant: 'destructive' })
-          return
-        }
-
-        await refreshBoard()
-        setColumnDialogOpen(false)
-        return
-      }
-
-      if (!columnTarget) return
-
-      if (columnDialogMode === 'edit') {
-        if (!columnDraftName.trim() || columnDraftName.trim() === columnTarget.name) {
-          setColumnDialogOpen(false)
-          return
-        }
-
-        const response = await fetch(`/api/columns/${columnTarget.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: columnDraftName.trim(),
-            color: columnDraftColor,
-            wipLimit: columnDraftWipLimit.trim() ? Number(columnDraftWipLimit) : null,
-            userId: currentUserId,
-          }),
-        })
-
-        if (!response.ok) {
-          toast({ title: 'Не удалось обновить колонку', variant: 'destructive' })
-          return
-        }
-
-        await refreshBoard()
-        setColumnDialogOpen(false)
-        return
-      }
-
-      const response = await fetch(`/api/columns/${columnTarget.id}?userId=${currentUserId}`, {
-        method: 'DELETE',
-      })
-
-      if (!response.ok) {
-        toast({ title: 'Не удалось удалить колонку', variant: 'destructive' })
-        return
-      }
-
-      await refreshBoard()
-      setColumnDialogOpen(false)
-    } finally {
-      setColumnSubmitting(false)
-    }
-  }
-
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-[radial-gradient(circle_at_top,#eef2ff,transparent_38%),linear-gradient(180deg,#f8fafc_0%,#f3f4f6_100%)]">
       <header className="border-b border-white/60 bg-white/70 px-6 py-4 backdrop-blur-xl">
@@ -617,7 +499,7 @@ export function Board({ initialColumns, boardId, boardName, userId }: BoardProps
                     column={column}
                     onCardClick={setSelectedCard}
                     onAddCard={setNewCardColumnId}
-                    onColumnMenu={handleColumnAction}
+                    onColumnMenu={(column, action) => columnDialogRef.current?.open(action, column)}
                   />
                 ))}
 
@@ -625,7 +507,7 @@ export function Board({ initialColumns, boardId, boardName, userId }: BoardProps
                   <Button
                     variant="outline"
                     className="h-full min-h-[220px] w-full rounded-[24px] border-dashed bg-white/50 text-slate-500 hover:bg-white"
-                    onClick={openCreateColumnDialog}
+                    onClick={() => columnDialogRef.current?.open('create')}
                   >
                     <Plus className="mr-2 h-5 w-5" />
                     Добавить колонку
@@ -642,7 +524,7 @@ export function Board({ initialColumns, boardId, boardName, userId }: BoardProps
                 column={activeColumn}
                 onCardClick={setSelectedCard}
                 onAddCard={setNewCardColumnId}
-                onColumnMenu={handleColumnAction}
+                onColumnMenu={(column, action) => columnDialogRef.current?.open(action, column)}
                 isDragOverlay
               />
             ) : null}
@@ -653,6 +535,7 @@ export function Board({ initialColumns, boardId, boardName, userId }: BoardProps
           events={eventLog}
           isOpen={isEventLogOpen}
           onClose={() => setIsEventLogOpen(false)}
+          columns={columns.map((column) => ({ id: column.id, name: column.name }))}
         />
       </main>
 
@@ -689,80 +572,13 @@ export function Board({ initialColumns, boardId, boardName, userId }: BoardProps
         columns={columns}
       />
 
-      <Dialog open={columnDialogOpen} onOpenChange={setColumnDialogOpen}>
-        <DialogContent className="max-w-md rounded-[28px] border-white/60 bg-white/95">
-          <DialogHeader>
-            <DialogTitle>
-              {columnDialogMode === 'create' && 'Новая колонка'}
-              {columnDialogMode === 'edit' && 'Переименовать колонку'}
-              {columnDialogMode === 'delete' && 'Удалить колонку'}
-            </DialogTitle>
-          </DialogHeader>
-
-          {columnDialogMode === 'delete' ? (
-            <p className="text-sm text-muted-foreground">
-              Удалить колонку "{columnTarget?.name}"? Это действие нельзя отменить.
-            </p>
-          ) : (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Название</label>
-                <Input
-                  value={columnDraftName}
-                  onChange={(e) => setColumnDraftName(e.target.value)}
-                  placeholder="Например: На проверке"
-                  className="h-11 rounded-xl bg-slate-50"
-                  autoFocus
-                />
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Цвет</label>
-                  <div className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2">
-                    <input
-                      type="color"
-                      value={columnDraftColor}
-                      onChange={(e) => setColumnDraftColor(e.target.value)}
-                      className="h-8 w-10 cursor-pointer rounded border-0 bg-transparent p-0"
-                    />
-                    <span className="text-sm text-slate-600">{columnDraftColor}</span>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">WIP limit</label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={columnDraftWipLimit}
-                    onChange={(e) => setColumnDraftWipLimit(e.target.value)}
-                    placeholder="Например: 3"
-                    className="h-11 rounded-xl bg-slate-50"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setColumnDialogOpen(false)}
-              disabled={columnSubmitting}
-            >
-              Отмена
-            </Button>
-            <Button
-              variant={columnDialogMode === 'delete' ? 'destructive' : 'default'}
-              onClick={() => void handleSubmitColumnDialog()}
-              disabled={columnSubmitting || (columnDialogMode !== 'delete' && !columnDraftName.trim())}
-            >
-              {columnDialogMode === 'delete' ? 'Удалить' : 'Сохранить'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ColumnDialog
+        ref={columnDialogRef}
+        boardId={boardId}
+        columns={columns}
+        userId={currentUserId}
+        onSuccess={refreshBoard}
+      />
     </div>
   )
 }

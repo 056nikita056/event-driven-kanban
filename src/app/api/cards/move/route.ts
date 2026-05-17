@@ -23,25 +23,24 @@ export async function POST(req: NextRequest) {
 
   const { cardId, fromColumnId, toColumnId, order, boardId, userId } = parsed.data
 
-  // Update card position + increment version
-  const card = await prisma.card.update({
-    where: { id: cardId },
-    data: {
-      columnId: toColumnId,
-      order,
-      version: { increment: 1 },
-    },
-  })
-
-  // Reorder other cards in target column
-  await prisma.card.updateMany({
-    where: {
-      columnId: toColumnId,
-      id: { not: cardId },
-      order: { gte: order },
-    },
-    data: { order: { increment: 1 } },
-  })
+  const [card] = await prisma.$transaction([
+    prisma.card.update({
+      where: { id: cardId },
+      data: {
+        columnId: toColumnId,
+        order,
+        version: { increment: 1 },
+      },
+    }),
+    prisma.card.updateMany({
+      where: {
+        columnId: toColumnId,
+        id: { not: cardId },
+        order: { gte: order },
+      },
+      data: { order: { increment: 1 } },
+    }),
+  ])
 
   await enqueueEvent(
     'card.moved',

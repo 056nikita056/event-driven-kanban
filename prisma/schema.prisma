@@ -22,21 +22,21 @@ enum Role {
 }
 
 model Board {
-  id      String          @id @default(cuid())
+  id      String           @id @default(cuid())
   name    String
   columns Column[]
   rules   AutomationRule[]
 }
 
 model Column {
-  id      String  @id @default(cuid())
-  boardId String
-  name    String
-  order   Int
-  color   String?
+  id       String  @id @default(cuid())
+  boardId  String
+  name     String
+  order    Int
+  color    String?
   wipLimit Int?
-  board   Board   @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  cards   Card[]
+  board    Board   @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  cards    Card[]
 }
 
 model Card {
@@ -48,7 +48,6 @@ model Card {
   tags        String[]
   order       Int
   deadline    DateTime?
-  assigneeId  String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   version     Int       @default(1)
@@ -67,10 +66,10 @@ model AutomationRule {
   boardId       String
   name          String
   enabled       Boolean @default(true)
-  triggerType   String  // 'card.created' | 'card.moved' | 'tag.added'
-  triggerConfig Json    // {"toColumnId": "...", "tag": "urgent"}
-  actionType    String  // 'move_to_column' | 'add_tag' | 'notify'
-  actionConfig  Json    // {"columnId": "..."}
+  triggerType   String // 'card.created' | 'card.moved' | 'tag.added'
+  triggerConfig Json // {"toColumnId": "...", "tag": "urgent"}
+  actionType    String // 'move_to_column' | 'add_tag' | 'notify'
+  actionConfig  Json // {"columnId": "..."}
   board         Board   @relation(fields: [boardId], references: [id], onDelete: Cascade)
 }
 

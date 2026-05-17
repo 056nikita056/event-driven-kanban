@@ -1,9 +1,3 @@
-/**
- * BullMQ Event Worker — отдельный процесс.
- * Запуск: npm run worker (tsx watch src/worker.ts)
- * Прод: node dist/worker.js
- */
-
 import 'dotenv/config'
 import { Worker, Job } from 'bullmq'
 import { prisma } from './lib/prisma'
@@ -22,7 +16,6 @@ const worker = new Worker<KanbanJobData>(
     const { eventKey, type, payload, userId } = job.data
     console.log(`[Worker] Processing ${type} | key: ${eventKey}`)
 
-    // 1. Save event to DB (deduplicated by eventKey unique constraint)
     let eventRecord
     try {
       eventRecord = await prisma.event.create({
@@ -36,7 +29,7 @@ const worker = new Worker<KanbanJobData>(
       })
     } catch (err: any) {
       if (err.code === 'P2002') {
-        // Unique constraint violation = duplicate event, skip
+        // дедупликация: duplicate event — skip
         console.log(`[Worker] Duplicate event skipped: ${eventKey}`)
         return
       }
@@ -44,13 +37,11 @@ const worker = new Worker<KanbanJobData>(
     }
 
     try {
-      // 2. Determine boardId from payload
-      const boardId = getBoardId(type as EventType, payload as Record<string, unknown>)
+      const boardId = getBoardId(payload as Record<string, unknown>)
 
-      // 3. Emit real-time update to all board clients
       emitBoardUpdate(boardId, type, payload)
 
-      // 4. Run automation rules
+      // запускаем правила автоматизации
       await runAutomation({
         eventType: type as EventType,
         payload: payload as Record<string, unknown>,
@@ -58,13 +49,11 @@ const worker = new Worker<KanbanJobData>(
         userId,
       })
 
-      // 5. Mark event as completed
       await prisma.event.update({
         where: { id: eventRecord.id },
         data: { status: 'COMPLETED', processedAt: new Date() },
       })
 
-      // 6. Emit event log for visual event stream
       emitEventLog(boardId, {
         id: eventRecord.id,
         type,
@@ -76,7 +65,6 @@ const worker = new Worker<KanbanJobData>(
 
       console.log(`[Worker] ✓ ${type} completed`)
     } catch (err: any) {
-      // Mark event as failed
       await prisma.event.update({
         where: { id: eventRecord.id },
         data: { status: 'FAILED', error: err?.message || 'Unknown error' },
@@ -112,8 +100,7 @@ process.on('SIGINT', async () => {
   process.exit(0)
 })
 
-// ─── Helper ────────────────────────────────────────────────────────────────────
-function getBoardId(type: EventType, payload: Record<string, unknown>): string {
+function getBoardId(payload: Record<string, unknown>): string {
   const boardId = payload.boardId as string | undefined
   if (boardId) return boardId
   return process.env.DEFAULT_BOARD_ID || 'board-1'

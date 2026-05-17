@@ -23,7 +23,7 @@ const UpdateCardSchema = z.object({
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
   tags: z.array(z.string()).optional(),
   deadline: z.string().datetime().nullable().optional(),
-  version: z.number().int().optional(), // for optimistic locking check
+  version: z.number().int().optional(),
   boardId: z.string().optional(),
   userId: z.string().optional(),
 })
@@ -40,31 +40,33 @@ export async function PATCH(
 
   const { userId, boardId, version: clientVersion, ...changes } = parsed.data
 
-  // Optimistic locking check
-  if (clientVersion !== undefined) {
-    const current = await prisma.card.findUnique({
-      where: { id: params.id },
-      select: { version: true },
-    })
-    if (!current) {
-      return NextResponse.json({ error: 'Card not found', ok: false }, { status: 404 })
-    }
-    if (current.version !== clientVersion) {
-      return NextResponse.json(
-        { error: 'Conflict: card was modified by someone else', ok: false },
-        { status: 409 }
-      )
-    }
-  }
-
-  const card = await prisma.card.update({
-    where: { id: params.id },
+  const updated = await prisma.card.updateMany({
+    where: clientVersion === undefined ? { id: params.id } : { id: params.id, version: clientVersion },
     data: {
       ...changes,
       deadline: changes.deadline === null ? null : changes.deadline ? new Date(changes.deadline) : undefined,
       version: { increment: 1 },
     },
   })
+
+  if (updated.count === 0) {
+    const exists = await prisma.card.findUnique({
+      where: { id: params.id },
+      select: { id: true },
+    })
+    if (!exists) {
+      return NextResponse.json({ error: 'Card not found', ok: false }, { status: 404 })
+    }
+    return NextResponse.json(
+      { error: 'Conflict: card was modified', ok: false },
+      { status: 409 }
+    )
+  }
+
+  const card = await prisma.card.findUnique({ where: { id: params.id } })
+  if (!card) {
+    return NextResponse.json({ error: 'Card not found', ok: false }, { status: 404 })
+  }
 
   const resolvedBoardId = boardId || (await prisma.column.findUnique({
     where: { id: card.columnId },

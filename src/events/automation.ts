@@ -1,13 +1,7 @@
-/**
- * Automation engine: evaluates rules against events.
- * Called by the worker after each event is processed.
- */
-
 import { prisma } from '@/lib/prisma'
 import { enqueueEvent } from '@/lib/queue'
 import { emitNotification } from '@/lib/socket'
 import type { EventType } from './types'
-import { v4 as uuidv4 } from 'uuid'
 
 interface AutomationContext {
   eventType: EventType | 'tag.added'
@@ -35,7 +29,6 @@ export async function runAutomation(ctx: AutomationContext): Promise<void> {
     try {
       await executeAction(rule.actionType, actionConfig, payload, boardId)
 
-      // Log rule.triggered event
       await enqueueEvent('rule.triggered', {
         ruleId: rule.id,
         ruleName: rule.name,
@@ -60,13 +53,11 @@ function checkTrigger(
 
   switch (eventType) {
     case 'card.moved': {
-      // Match if toColumnId matches
       if (config.toColumnId && payload.toColumnId !== config.toColumnId) return false
       if (config.fromColumnId && payload.fromColumnId !== config.fromColumnId) return false
       return true
     }
     case 'card.created': {
-      // Match on priority or tag
       if (config.priority && payload.priority !== config.priority) return false
       if (config.tag) {
         const tags = payload.tags as string[] || []
@@ -96,7 +87,9 @@ async function executeAction(
       if (!cardId || !targetColumnId) return
 
       const card = await prisma.card.findUnique({ where: { id: cardId } })
-      if (!card || card.columnId === targetColumnId) return
+      if (!card) return
+      // loop protection: не двигаем если карточка уже в нужной колонке
+      if (card.columnId === targetColumnId) return
 
       const maxOrder = await prisma.card.aggregate({
         where: { columnId: targetColumnId },
@@ -141,7 +134,6 @@ async function executeAction(
       for (const user of users) {
         const notif = await prisma.notification.create({
           data: {
-            id: uuidv4(),
             userId: user.id,
             type: 'automation',
             message,

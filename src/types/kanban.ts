@@ -47,6 +47,12 @@ export interface User {
   role?: string
 }
 
+export interface ApiResponse<T> {
+  ok: boolean
+  data?: T
+  error?: string
+}
+
 export type RuleTriggerType = 'card.created' | 'card.moved' | 'tag.added'
 export type RuleActionType = 'move_to_column' | 'add_tag' | 'notify'
 

@@ -123,7 +123,7 @@ export function CommandPalette({
             <div className="border-b border-slate-200 bg-indigo-50/80 px-4 py-3">
               <div className="mb-2 flex items-center gap-2 text-xs font-medium text-indigo-700">
                 <Zap className="h-4 w-4" />
-                AI распознал
+                Автораспознавание
               </div>
               <div className="flex flex-wrap gap-2">
                 {aiSuggestion.priority && (

@@ -6,7 +6,6 @@ import { v4 as uuidv4 } from 'uuid'
 
 export const QUEUE_NAME = 'kanban-events'
 
-// Singleton queue instance
 const globalForQueue = globalThis as unknown as {
   kanbanQueue: Queue<KanbanJobData> | undefined
 }
@@ -28,10 +27,6 @@ export const kanbanQueue: Queue<KanbanJobData> =
 
 if (process.env.NODE_ENV !== 'production') globalForQueue.kanbanQueue = kanbanQueue
 
-/**
- * Enqueue a Kanban event.
- * eventKey is used for deduplication at the DB level.
- */
 export async function enqueueEvent(
   type: EventType,
   payload: unknown,
@@ -52,7 +47,7 @@ export async function enqueueEvent(
   }
 
   await kanbanQueue.add(type, jobData, {
-    jobId: eventKey, // BullMQ-level dedup: same jobId = skip
+    jobId: eventKey,
   })
 
   console.log(`[Queue] Enqueued ${type} | key: ${eventKey}`)

@@ -3,9 +3,9 @@ import { Board } from '@/components/Board'
 import type { Column } from '@/types/kanban'
 
 const BOARD_ID = process.env.DEFAULT_BOARD_ID || 'board-1'
+const DEFAULT_USER_ID = 'user1'
 export const dynamic = 'force-dynamic'
 
-// Ensure board exists
 async function getBoard() {
   return prisma.board.upsert({
     where: { id: BOARD_ID },
@@ -30,7 +30,7 @@ export default async function HomePage() {
       initialColumns={board.columns as unknown as Column[]}
       boardId={BOARD_ID}
       boardName={board.name}
-      userId="user1"
+      userId={DEFAULT_USER_ID}
     />
   )
 }

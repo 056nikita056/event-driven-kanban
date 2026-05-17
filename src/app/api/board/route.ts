@@ -8,7 +8,6 @@ export const dynamic = 'force-dynamic'
 export async function GET(req: NextRequest) {
   const boardId = req.nextUrl.searchParams.get('boardId') || DEFAULT_BOARD_ID
 
-  // Ensure board exists
   const board = await prisma.board.upsert({
     where: { id: boardId },
     update: {},

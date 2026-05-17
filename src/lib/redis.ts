@@ -2,7 +2,6 @@ import Redis from 'ioredis'
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379'
 
-// Connection for BullMQ (cannot be reused across purposes)
 export function createRedisConnection() {
   const client = new Redis(REDIS_URL, {
     maxRetriesPerRequest: null, // Required by BullMQ
@@ -20,7 +19,6 @@ export function createRedisConnection() {
   return client
 }
 
-// Shared client for pub/sub & misc
 const globalForRedis = globalThis as unknown as {
   redis: Redis | undefined
 }

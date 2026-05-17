@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Plus, Settings2, Trash2 } from 'lucide-react'
 
-import type { AutomationRule, Column, RuleActionType, RuleTriggerType, User } from '@/types/kanban'
+import type { ApiResponse, AutomationRule, Column, RuleActionType, RuleTriggerType, User } from '@/types/kanban'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -41,13 +41,19 @@ interface RuleFormState {
   actionTargetUserId: string
 }
 
-interface ApiResponse<T> {
-  ok: boolean
-  data?: T
-  error?: string
+const EMPTY_VALUE = '__empty__'
+
+const TRIGGER_LABELS: Record<string, string> = {
+  'card.created': 'Карточка создана',
+  'card.moved': 'Карточка перемещена',
+  'tag.added': 'Тег добавлен',
 }
 
-const EMPTY_VALUE = '__empty__'
+const ACTION_LABELS: Record<string, string> = {
+  move_to_column: 'Переместить в колонку',
+  add_tag: 'Добавить тег',
+  notify: 'Уведомить',
+}
 
 const DEFAULT_FORM: RuleFormState = {
   name: '',
@@ -65,11 +71,11 @@ const DEFAULT_FORM: RuleFormState = {
   actionTargetUserId: '',
 }
 
-function emptyToSentinel(value: string | undefined | null) {
+function toSelectValue(value: string | undefined | null) {
   return value && value.length > 0 ? value : EMPTY_VALUE
 }
 
-function sentinelToEmpty(value: string) {
+function fromSelectValue(value: string) {
   return value === EMPTY_VALUE ? '' : value
 }
 
@@ -330,7 +336,8 @@ export function AdminRulesDialog({
                     >
                       <p className="truncate text-sm font-semibold text-slate-900">{rule.name}</p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {rule.triggerType} → {rule.actionType}
+                        {TRIGGER_LABELS[rule.triggerType] || rule.triggerType} →{' '}
+                        {ACTION_LABELS[rule.actionType] || rule.actionType}
                       </p>
                     </button>
                     <button
@@ -430,9 +437,9 @@ export function AdminRulesDialog({
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Пользователь</label>
                     <Select
-                      value={emptyToSentinel(form.triggerUserId)}
+                      value={toSelectValue(form.triggerUserId)}
                       onValueChange={(value) =>
-                        setForm((prev) => ({ ...prev, triggerUserId: sentinelToEmpty(value) }))
+                        setForm((prev) => ({ ...prev, triggerUserId: fromSelectValue(value) }))
                       }
                     >
                       <SelectTrigger className="h-11 rounded-xl bg-white">
@@ -454,9 +461,9 @@ export function AdminRulesDialog({
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Приоритет</label>
                         <Select
-                          value={emptyToSentinel(form.triggerPriority)}
+                          value={toSelectValue(form.triggerPriority)}
                           onValueChange={(value) =>
-                            setForm((prev) => ({ ...prev, triggerPriority: sentinelToEmpty(value) }))
+                            setForm((prev) => ({ ...prev, triggerPriority: fromSelectValue(value) }))
                           }
                         >
                           <SelectTrigger className="h-11 rounded-xl bg-white">
@@ -488,9 +495,9 @@ export function AdminRulesDialog({
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Из колонки</label>
                         <Select
-                          value={emptyToSentinel(form.triggerFromColumnId)}
+                          value={toSelectValue(form.triggerFromColumnId)}
                           onValueChange={(value) =>
-                            setForm((prev) => ({ ...prev, triggerFromColumnId: sentinelToEmpty(value) }))
+                            setForm((prev) => ({ ...prev, triggerFromColumnId: fromSelectValue(value) }))
                           }
                         >
                           <SelectTrigger className="h-11 rounded-xl bg-white">
@@ -509,9 +516,9 @@ export function AdminRulesDialog({
                       <div className="space-y-2">
                         <label className="text-sm font-medium">В колонку</label>
                         <Select
-                          value={emptyToSentinel(form.triggerToColumnId)}
+                          value={toSelectValue(form.triggerToColumnId)}
                           onValueChange={(value) =>
-                            setForm((prev) => ({ ...prev, triggerToColumnId: sentinelToEmpty(value) }))
+                            setForm((prev) => ({ ...prev, triggerToColumnId: fromSelectValue(value) }))
                           }
                         >
                           <SelectTrigger className="h-11 rounded-xl bg-white">
@@ -570,9 +577,9 @@ export function AdminRulesDialog({
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Целевая колонка</label>
                       <Select
-                        value={emptyToSentinel(form.actionColumnId)}
+                        value={toSelectValue(form.actionColumnId)}
                         onValueChange={(value) =>
-                          setForm((prev) => ({ ...prev, actionColumnId: sentinelToEmpty(value) }))
+                          setForm((prev) => ({ ...prev, actionColumnId: fromSelectValue(value) }))
                         }
                       >
                         <SelectTrigger className="h-11 rounded-xl bg-white">
@@ -616,9 +623,9 @@ export function AdminRulesDialog({
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Кому отправить</label>
                         <Select
-                          value={emptyToSentinel(form.actionTargetUserId)}
+                          value={toSelectValue(form.actionTargetUserId)}
                           onValueChange={(value) =>
-                            setForm((prev) => ({ ...prev, actionTargetUserId: sentinelToEmpty(value) }))
+                            setForm((prev) => ({ ...prev, actionTargetUserId: fromSelectValue(value) }))
                           }
                         >
                           <SelectTrigger className="h-11 rounded-xl bg-white">

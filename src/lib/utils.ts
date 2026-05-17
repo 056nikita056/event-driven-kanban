@@ -12,20 +12,6 @@ export const PRIORITY_LABELS = {
   URGENT: 'Срочно',
 } as const
 
-export const PRIORITY_COLORS = {
-  LOW: 'text-slate-500 bg-slate-100',
-  MEDIUM: 'text-blue-600 bg-blue-100',
-  HIGH: 'text-orange-600 bg-orange-100',
-  URGENT: 'text-red-600 bg-red-100',
-} as const
-
-export const PRIORITY_BORDER = {
-  LOW: 'border-l-slate-300',
-  MEDIUM: 'border-l-blue-400',
-  HIGH: 'border-l-orange-400',
-  URGENT: 'border-l-red-500',
-} as const
-
 export const EVENT_TYPE_LABELS: Record<string, string> = {
   'card.created': '✨ Карточка создана',
   'card.updated': '✏️ Карточка обновлена',

@@ -1,11 +1,3 @@
-/**
- * Custom Next.js server with Socket.io attached.
- * Run: tsx server.ts (dev) or node dist/server.js (prod)
- *
- * This is needed because Socket.io requires access to the raw http.Server,
- * which App Router API routes don't expose.
- */
-
 import { createServer } from 'http'
 import { parse } from 'url'
 import next from 'next'
@@ -32,7 +24,6 @@ app.prepare().then(() => {
     }
   })
 
-  // Attach Socket.io
   const io = new SocketIOServer<ClientToServerEvents, ServerToClientEvents>(httpServer, {
     cors: {
       origin: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
@@ -61,6 +52,7 @@ app.prepare().then(() => {
   })
 
   httpServer.listen(port, () => {
+    // Socket.io attached to same port as Next.js
     console.log(`> Ready on http://${hostname}:${port}`)
     console.log(`> Socket.io listening on same port`)
   })
