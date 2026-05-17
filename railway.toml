@@ -3,6 +3,6 @@ builder = "NIXPACKS"
 buildCommand = "npm ci && npx prisma generate && npx prisma db push && npm run build"
 
 [deploy]
-startCommand = "sh -c 'if [ \"$SERVICE_TYPE\" = \"worker\" ]; then npm run worker:prod; else npm run start; fi'"
+startCommand = "sh -c 'npx prisma db push && if [ \"$SERVICE_TYPE\" = \"worker\" ]; then npm run worker:prod; else npm run start; fi'"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
