@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Custom server needed for Socket.io — see server.ts
-  // Using default Next.js server with Socket.io attached via API route hack
+  // Socket.io is attached in server.ts, so production must run `npm run start`.
   experimental: {
     serverComponentsExternalPackages: ['@prisma/client', 'bullmq', 'ioredis'],
   },

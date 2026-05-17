@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { enqueueEvent } from '@/lib/queue'
-import { publishNotification } from '@/lib/pubsub'
+import { publishBoardUpdate, publishNotification } from '@/lib/pubsub'
 import type { EventType } from './types'
 
 interface AutomationContext {
@@ -97,13 +97,23 @@ async function executeAction(
         _max: { order: true },
       })
 
-      await prisma.card.update({
+      const updatedCard = await prisma.card.update({
         where: { id: cardId },
         data: {
           columnId: targetColumnId,
           order: (maxOrder._max.order ?? -1) + 1,
           version: { increment: 1 },
         },
+      })
+
+      publishBoardUpdate(boardId, 'card.moved', {
+        cardId,
+        boardId,
+        fromColumnId: card.columnId,
+        toColumnId: targetColumnId,
+        order: updatedCard.order,
+        version: updatedCard.version,
+        automated: true,
       })
       break
     }
@@ -117,9 +127,17 @@ async function executeAction(
       if (!card) return
       if (card.tags.includes(tag)) return
 
-      await prisma.card.update({
+      const updatedCard = await prisma.card.update({
         where: { id: cardId },
         data: { tags: [...card.tags, tag], version: { increment: 1 } },
+      })
+
+      publishBoardUpdate(boardId, 'card.updated', {
+        cardId,
+        boardId,
+        version: updatedCard.version,
+        changes: { tags: updatedCard.tags },
+        automated: true,
       })
       break
     }

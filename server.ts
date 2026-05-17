@@ -8,7 +8,7 @@ import { PUBSUB_CHANNELS } from './src/lib/pubsub'
 import type { ServerToClientEvents, ClientToServerEvents } from './src/events/types'
 
 const dev = process.env.NODE_ENV !== 'production'
-const hostname = process.env.HOST || 'localhost'
+const hostname = process.env.HOST || process.env.HOSTNAME || '0.0.0.0'
 const port = parseInt(process.env.PORT || '3000', 10)
 
 const app = next({ dev, hostname, port })
